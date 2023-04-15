@@ -29,6 +29,9 @@ namespace
     };
 } // namespace
 
+// Visual Studio 2015 or newer
+// or Clang
+#if (defined(_MSC_VER) && _MSC_VER >= 1900) || defined(__clang__)
 std::string getProgramFilesX86Path()
 {
     char       *programFilesX86Path = nullptr;
@@ -48,6 +51,19 @@ std::string getProgramFilesX86Path()
 
     return res;
 }
+#else
+std::string getProgramFilesX86Path()
+{
+    const char *programFilesX86Path = std::getenv("ProgramFiles(x86)");
+    if (programFilesX86Path == nullptr)
+    {
+        std::cerr << "cannot find ProgramFiles(x86) environment variable" << std::endl;
+        return R"(C:\Program Files (x86))";
+    }
+
+    return {programFilesX86Path};
+}
+#endif
 
 bool getSDKIncludedDirectories(const std::string &sdkVer, std::vector<std::string> &directories)
 {
