@@ -1,0 +1,89 @@
+name: Windows
+on: 
+  push:
+    paths-ignore:
+      - 'README.md'
+      - 'LICENSE'
+  pull_request:
+    paths-ignore:
+      - 'README.md'
+      - 'LICENSE'
+jobs:          
+  Windows-MinGW:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        include:
+          - build_arch: mingw64-ucrt-gcc
+            mingw_arch: UCRT64 
+            mingw_prefix: mingw-w64-ucrt-x86_64
+            toolchains: gcc
+            c: gcc
+            cxx: g++
+          - build_arch: mingw64-gcc
+            mingw_arch: MINGW64 
+            mingw_prefix: mingw-w64-x86_64
+            toolchains: gcc
+            c: gcc
+            cxx: g++
+          - build_arch: mingw32-gcc
+            mingw_arch: MINGW32
+            mingw_prefix: mingw-w64-i686
+            toolchains: gcc
+            c: gcc
+            cxx: g++
+          - build_arch: clang64-clang
+            mingw_arch: CLANG64 
+            mingw_prefix: mingw-w64-clang-x86_64
+            toolchains: clang
+            c: clang
+            cxx: clang++
+          - build_arch: clang32-clang
+            mingw_arch: CLANG32
+            mingw_prefix: mingw-w64-clang-i686
+            toolchains: clang
+            c: clang
+            cxx: clang++
+          
+    steps:
+      - uses: msys2/setup-msys2@v2
+        with:
+          update: true
+          msystem: ${{ matrix.mingw_arch }}
+          install: zip make git ${{ matrix.mingw_prefix }}-${{ matrix.toolchains }} ${{ matrix.mingw_prefix }}-make ${{ matrix.mingw_prefix }}-cmake ${{ matrix.mingw_prefix }}-openssl ${{ matrix.mingw_prefix }}-boost ${{ matrix.mingw_prefix }}-zstd
+          
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
+          submodules: true
+          
+      - name: Build 
+        shell: msys2 {0}
+        run: |
+          mkdir build
+          cd build
+          env PATH=$PATH:/${{ matrix.mingw_arch }}/bin cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_C_COMPILER=${{ matrix.c }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} -G Ninja ..
+          env PATH=$PATH:/${{ matrix.mingw_arch }}/bin ninja
+          mkdir bin
+          cp vcjsondb.exe bin/
+          cd ..
+
+      - name: upload executable artifact
+        uses: actions/upload-artifact@v1
+        with:
+          path: build\bin
+          name: vcjsondb-${{ matrix.build_arch }}
+
+      - name: Compress release
+        if: startsWith(github.event.ref, 'refs/tags/')
+        run: powershell Compress-Archive build\bin vcjsondb-${{ matrix.build_arch }}.zip
+        
+      - name: uploadRelease
+        if: startsWith(github.event.ref, 'refs/tags/')
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GH_TOKEN }}
+          file: vcjsondb-${{ matrix.build_arch }}.zip
+          asset_name: vcjsondb-${{ matrix.build_arch }}.zip
+          tag: ${{ github.ref }}
+          overwrite: true
