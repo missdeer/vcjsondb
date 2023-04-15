@@ -16,9 +16,17 @@ namespace fs = std::filesystem;
 
 namespace
 {
-    std::string outputDirectory;
-    std::string target;
-    bool        fileInserted = false;
+    std::string                              outputDirectory;
+    std::string                              target;
+    bool                                     fileInserted        = false;
+    const std::map<std::string, std::string> languageStandardMap = {
+        {"stdcpp11", "-std=c++11"},
+        {"stdcpp14", "-std=c++14"},
+        {"stdcpp17", "-std=c++17"},
+        {"stdcpp20", "-std=c++20"},
+        {"stdcpp23", "-std=c++23"},
+        {"stdcpplatest", "-std=c++2b"},
+    };
 } // namespace
 
 std::string getProgramFilesX86Path()
@@ -295,14 +303,6 @@ bool parseVcxprojFile(const std::string &filePath, std::ofstream &ofs)
     {
         languageStandard = std::string(languageStandardNode->value(), languageStandardNode->value_size());
     }
-    const std::map<std::string, std::string> languageStandardMap = {
-        {"stdcpp11", "-std=c++11"},
-        {"stdcpp14", "-std=c++14"},
-        {"stdcpp17", "-std=c++17"},
-        {"stdcpp20", "-std=c++20"},
-        {"stdcpp23", "-std=c++23"},
-        {"stdcpplatest", "-std=c++2b"},
-    };
     auto iter = languageStandardMap.find(languageStandard);
     if (languageStandardMap.end() != iter)
     {
@@ -494,11 +494,13 @@ int main(int argc, char *argv[])
 
     target = "'$(Configuration)|$(Platform)'=='" + target + "'";
 
-    std::ofstream ofs(outputDirectory + "\\compile_commands.json");
+    fs::path outputPath(outputDirectory + "\\compile_commands.json");
+    outputPath = fs::absolute(outputPath).lexically_normal();
+    std::ofstream ofs(outputPath.string());
 
     if (!ofs.is_open())
     {
-        std::cerr << "Error opening file " << outputDirectory << "\\compile_commands.json" << std::endl;
+        std::cerr << "Error opening file " << outputPath.string() << std::endl;
         return 1;
     }
     ofs << "[\n";
@@ -517,7 +519,7 @@ int main(int argc, char *argv[])
     ofs << "\n]\n";
     ofs.close();
 
-    std::cout << outputDirectory + "\\compile_commands.json is written" << std::endl;
+    std::cout << outputPath.string() << " is written" << std::endl;
 
     return 0;
 }
