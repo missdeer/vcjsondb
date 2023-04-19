@@ -31,6 +31,8 @@ add_compile_definitions(STRSAFE_NO_DEPRECATE _WIN32_WINNT=0x0601)
 
 set(PROJECT_SOURCES
     main.cpp
+    utils.cpp
+    utils.h
     )
 
 IF(WIN32)
