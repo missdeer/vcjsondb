@@ -323,13 +323,13 @@ bool parseSlnFile(const std::string &filePath, std::ofstream &ofs)
 
 int main(int argc, char *argv[])
 {
-    std::vector<std::string> inputFiles;
+    std::string inputFile;
 
     po::options_description desc("Allowed options");
     desc.add_options()("help,h",
                        "produce help message")("target,t", po::value<std::string>(&target)->default_value("Release|x64"), "set build target")(
         "output-directory,o", po::value<std::string>(&outputDirectory)->default_value("."), "output directory")(
-        "input-files,i", po::value<std::vector<std::string>>(&inputFiles)->multitoken(), "input .sln or .vcxproj files path");
+        "input-path,i", po::value<std::string>(&inputFile)->default_value(""), "input a .sln or .vcxproj file path, or a directory path contains .sln/.vcxproj files");
 
     po::variables_map varMap;
     po::store(po::parse_command_line(argc, argv, desc), varMap);
@@ -341,9 +341,48 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    if (inputFiles.empty())
+    if (inputFile.empty())
     {
         std::cerr << "No input file is specified." << std::endl;
+        return 1;
+    }
+
+    std::vector<std::string> inputFiles;
+    fs::path                 inputPath(inputFile);
+    if (fs::is_directory(inputPath))
+    {
+        // traverse this directory, find all .sln files
+        for (const auto &entry : std::filesystem::directory_iterator(inputPath))
+        {
+            if (entry.is_regular_file() && boost::iends_with(entry.path().string(), ".sln"))
+            {
+                inputFiles.push_back(entry.path().string());
+            }
+        }
+    }
+    else if (fs::is_regular_file(inputPath) && (boost::iends_with(inputFile, ".sln") || boost::iends_with(inputFile, ".vcxproj")))
+    {
+        inputFiles.push_back(inputFile);
+    }
+
+    if (inputFiles.empty())
+    {
+        fs::path inputPath(inputFile);
+        if (fs::is_directory(inputPath))
+        {
+            // traverse this directory, find all .vcxproj files
+            for (const auto &entry : std::filesystem::directory_iterator(inputPath))
+            {
+                if (entry.is_regular_file() && boost::iends_with(entry.path().string(), ".vcxproj"))
+                {
+                    inputFiles.push_back(entry.path().string());
+                }
+            }
+        }
+    }
+    if (inputFiles.empty())
+    {
+        std::cerr << "No .sln or .vcxproj file is found." << std::endl;
         return 1;
     }
 
