@@ -9,7 +9,7 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/rapidxml-1.13)
 
-find_package(Boost 1.79.0 REQUIRED)
+find_package(Boost 1.79.0 REQUIRED program_options filesystem)
 
 if(Boost_FOUND)
      include_directories(${Boost_INCLUDE_DIRS})
@@ -42,9 +42,8 @@ ENDIF(WIN32)
 add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})
 
 IF(Boost_FOUND)
-    IF(MSVC)
-        target_link_directories(${PROJECT_NAME} PRIVATE ${Boost_INCLUDE_DIRS}/lib64-msvc-14.3)
-    ELSE(MSVC)
-        target_link_libraries(${PROJECT_NAME} boost_program_options-mt boost_filesystem-mt ws2_32)
-    ENDIF(MSVC)
+    target_link_libraries(${PROJECT_NAME} PRIVATE Boost::program_options Boost::filesystem)
+    IF(NOT MSVC)
+        target_link_libraries(${PROJECT_NAME} PRIVATE ws2_32)
+    ENDIF()
 ENDIF(Boost_FOUND)
