@@ -27,6 +27,11 @@ endif(Boost_FOUND)
 
 if(NOT MSVC)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static")
+else()
+    add_compile_options("/MT$<$<CONFIG:Debug>:d>")
+    if(POLICY CMP0091)
+        cmake_policy(SET CMP0091 NEW)
+    endif()
 endif()
 
 add_compile_definitions(STRSAFE_NO_DEPRECATE _WIN32_WINNT=0x0601)
@@ -42,6 +47,11 @@ IF(WIN32)
 ENDIF(WIN32)
 
 add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})
+
+if(msvc)
+    set_property(TARGET ${PROJECT_NAME} PROPERTY
+        MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
 
 IF(Boost_FOUND)
     target_link_libraries(${PROJECT_NAME} PRIVATE Boost::program_options Boost::filesystem)
