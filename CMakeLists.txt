@@ -11,18 +11,11 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/rapidxml-1.13)
 
 set(Boost_NO_WARN_NEW_VERSIONS ON)
 
-find_package(Boost 1.79.0 REQUIRED program_options filesystem)
+find_package(Boost REQUIRED program_options filesystem)
 
 if(Boost_FOUND)
      include_directories(${Boost_INCLUDE_DIRS})
      link_directories(${Boost_LIBRARY_DIRS})
-
-     set(Boost_USE_STATIC_LIBS ON)
-
-     set(Boost_USE_MULTITHREADED ON)
-     if(MSVC)
-       set(Boost_USE_STATIC_RUNTIME ON)
-     endif(MSVC)
 endif(Boost_FOUND)
 
 if(NOT MSVC)
@@ -48,14 +41,12 @@ ENDIF(WIN32)
 
 add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})
 
-if(msvc)
+if(MSVC)
     set_property(TARGET ${PROJECT_NAME} PROPERTY
         MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+else()
+    target_link_libraries(${PROJECT_NAME} PRIVATE ws2_32)
 endif()
 
-IF(Boost_FOUND)
-    target_link_libraries(${PROJECT_NAME} PRIVATE Boost::program_options Boost::filesystem)
-    IF(NOT MSVC)
-        target_link_libraries(${PROJECT_NAME} PRIVATE ws2_32)
-    ENDIF()
-ENDIF(Boost_FOUND)
+target_link_libraries(${PROJECT_NAME} PRIVATE Boost::program_options Boost::filesystem)
+
