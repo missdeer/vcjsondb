@@ -18,12 +18,24 @@ if(Boost_FOUND)
      link_directories(${Boost_LIBRARY_DIRS})
 endif(Boost_FOUND)
 
-if(NOT MSVC)
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static")
+# First check the command line variable VCPKG_TARGET_TRIPLET
+if(DEFINED VCPKG_TARGET_TRIPLET)
+    set(TRIPLET ${VCPKG_TARGET_TRIPLET})
 else()
-    add_compile_options("/MT$<$<CONFIG:Debug>:d>")
-    if(POLICY CMP0091)
-        cmake_policy(SET CMP0091 NEW)
+    # If it's not defined, check the environment variable
+    set(TRIPLET $ENV{VCPKG_TARGET_TRIPLET})
+endif()
+
+# Now check if TRIPLET ends with "-windows-static"
+string(FIND "${TRIPLET}" "-windows-static" POSITION)
+if(${POSITION} GREATER_EQUAL 0)
+    if(NOT MSVC)
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static")
+    else()
+        add_compile_options("/MT$<$<CONFIG:Debug>:d>")
+        if(POLICY CMP0091)
+            cmake_policy(SET CMP0091 NEW)
+        endif()
     endif()
 endif()
 
