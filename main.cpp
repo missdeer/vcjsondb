@@ -31,7 +31,8 @@ bool parseVcxprojFile(const std::string &filePath, std::ofstream &ofs)
         std::cerr << filePath << " not exists" << std::endl;
         return false;
     }
-    fs::path vcxprojParentDirPath = vcxprojFilePath.parent_path();
+    fs::path          vcxprojParentDirPath = vcxprojFilePath.parent_path().lexically_normal();
+    const std::string vcxprojParentDirStr  = boost::algorithm::replace_all_copy(vcxprojParentDirPath.string(), "\\", "/");
 
     std::ifstream     file(filePath);
     std::vector<char> buffer((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
@@ -189,6 +190,11 @@ bool parseVcxprojFile(const std::string &filePath, std::ofstream &ofs)
         return boost::algorithm::starts_with(str, "%(");
     });
     additionalIncludedDirectories.erase(iterRemove, additionalIncludedDirectories.end());
+    std::transform(
+        additionalIncludedDirectories.begin(), additionalIncludedDirectories.end(), additionalIncludedDirectories.begin(), [](const auto &str) {
+            fs::path p(str);
+            return boost::algorithm::replace_all_copy(p.lexically_normal().string(), "\\", "/");
+        });
 
     auto *preprocessorDefinitionsNode = clCompileNode->first_node("PreprocessorDefinitions");
     if (!preprocessorDefinitionsNode)
@@ -212,7 +218,13 @@ bool parseVcxprojFile(const std::string &filePath, std::ofstream &ofs)
     std::vector<std::string> systemIncludedDirectories;
     getVCIncludedDirectories(toolset, systemIncludedDirectories);
     getSDKIncludedDirectories(sdkVer, systemIncludedDirectories);
+    std::transform(systemIncludedDirectories.begin(), systemIncludedDirectories.end(), systemIncludedDirectories.begin(), [](const auto &str) {
+        fs::path p(str);
+        return boost::algorithm::replace_all_copy(p.lexically_normal().string(), "\\", "/");
+    });
 
+    const std::string cppCmd = R"(  "command": "\"clang++.exe\" -x c++ \")";
+    const std::string cCmd   = R"(  "command": "\"clang.exe\" -x c \")";
     for (auto *itemGroupNode = rootNode->first_node("ItemGroup"); itemGroupNode != nullptr; itemGroupNode = itemGroupNode->next_sibling("ItemGroup"))
     {
         auto *clCompileNode = itemGroupNode->first_node("ClCompile");
@@ -224,9 +236,8 @@ bool parseVcxprojFile(const std::string &filePath, std::ofstream &ofs)
                 continue;
             }
             const std::string cppFile(includeAttr->value(), includeAttr->value_size());
-            const bool        isCpp  = !boost::algorithm::iends_with(cppFile, ".c");
-            const std::string cppCmd = R"(  "command": "\"clang++.exe\" -x c++ \")";
-            const std::string cCmd   = R"(  "command": "\"clang.exe\" -x c \")";
+            const std::string cppFileStr = boost::algorithm::replace_all_copy(cppFile, "\\", "/");
+            const bool        isCpp      = !boost::algorithm::iends_with(cppFile, ".c");
 
             if (!fileInserted)
             {
@@ -237,11 +248,9 @@ bool parseVcxprojFile(const std::string &filePath, std::ofstream &ofs)
                 ofs << ",\n";
             }
             ofs << "{\n"
-                << R"(  "directory": ")" << boost::algorithm::replace_all_copy(vcxprojParentDirPath.string(), "\\", "/") << R"(",)"
-                << "\n"
-                << R"(  "file": ")" << boost::algorithm::replace_all_copy(cppFile, "\\", "/") << R"(",)"
-                << "\n"
-                << (isCpp ? cppCmd : cCmd) << boost::algorithm::replace_all_copy(cppFile, "\\", "/") << R"(\" -fsyntax-only )";
+                << R"(  "directory": ")" << vcxprojParentDirStr << R"(",)" << "\n"
+                << R"(  "file": ")" << cppFileStr << R"(",)" << "\n"
+                << (isCpp ? cppCmd : cCmd) << cppFileStr << R"(\" -fsyntax-only )";
             if (isCpp)
             {
                 ofs << languageStandard << " ";
@@ -269,13 +278,11 @@ bool parseVcxprojFile(const std::string &filePath, std::ofstream &ofs)
             }
             for (const auto &systemIncludedDirectory : systemIncludedDirectories)
             {
-                fs::path path(systemIncludedDirectory);
-                ofs << R"( -isystem\")" << boost::algorithm::replace_all_copy(path.lexically_normal().string(), "\\", "/") << R"(\" )";
+                ofs << R"( -isystem\")" << systemIncludedDirectory << R"(\" )";
             }
             for (const auto &additionalIncludedDirectory : additionalIncludedDirectories)
             {
-                fs::path path(additionalIncludedDirectory);
-                ofs << R"( -I\")" << boost::algorithm::replace_all_copy(path.lexically_normal().string(), "\\", "/") << R"(\" )";
+                ofs << R"( -I\")" << additionalIncludedDirectory << R"(\" )";
             }
 
             ofs << "\"\n}";
@@ -331,7 +338,9 @@ int main(int argc, char *argv[])
     desc.add_options()("help,h",
                        "produce help message")("target,t", po::value<std::string>(&target)->default_value("Release|x64"), "set build target")(
         "output-directory,o", po::value<std::string>(&outputDirectory)->default_value("."), "output directory")(
-        "input-path,i", po::value<std::string>(&inputFile)->default_value(""), "input a .sln or .vcxproj file path, or a directory path contains .sln/.vcxproj files");
+        "input-path,i",
+        po::value<std::string>(&inputFile)->default_value(""),
+        "input a .sln or .vcxproj file path, or a directory path contains .sln/.vcxproj files");
 
     po::variables_map varMap;
     po::store(po::parse_command_line(argc, argv, desc), varMap);
