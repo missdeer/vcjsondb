@@ -269,11 +269,13 @@ bool parseVcxprojFile(const std::string &filePath, std::ofstream &ofs)
             }
             for (const auto &systemIncludedDirectory : systemIncludedDirectories)
             {
-                ofs << R"( -isystem\")" << boost::algorithm::replace_all_copy(systemIncludedDirectory, "\\", "/") << R"(\" )";
+                fs::path path(systemIncludedDirectory);
+                ofs << R"( -isystem\")" << boost::algorithm::replace_all_copy(path.lexically_normal().string(), "\\", "/") << R"(\" )";
             }
             for (const auto &additionalIncludedDirectory : additionalIncludedDirectories)
             {
-                ofs << R"( -I\")" << boost::algorithm::replace_all_copy(additionalIncludedDirectory, "\\", "/") << R"(\" )";
+                fs::path path(additionalIncludedDirectory);
+                ofs << R"( -I\")" << boost::algorithm::replace_all_copy(path.lexically_normal().string(), "\\", "/") << R"(\" )";
             }
 
             ofs << "\"\n}";
