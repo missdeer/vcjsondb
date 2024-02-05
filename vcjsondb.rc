@@ -15,12 +15,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "me@minidump.info"
             VALUE "FileDescription", "Export compiler commands database from Microsoft Visual Studio .sln/vcxproj file."
-            VALUE "FileVersion", "1.0.0.1"
+            VALUE "FileVersion", "1.1.0.1"
             VALUE "InternalName", "vcjsondb"
             VALUE "LegalCopyright", "Copyright (C) 2023 me@minidump.info. All rights reserved."
             VALUE "OriginalFilename", "vcjsondb.exe"
             VALUE "ProductName", "VC JSON DB"
-            VALUE "ProductVersion", "1.0.0.1"
+            VALUE "ProductVersion", "1.1.0.1"
         END
     END
     BLOCK "VarFileInfo"
