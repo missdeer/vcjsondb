@@ -66,7 +66,7 @@ jobs:
           env PATH=$PATH:/${{ matrix.mingw_arch }}/bin ninja
           mkdir bin
           cp vcjsondb.exe bin/
-          env PATH=$PATH:/${{ matrix.mingw_arch }}/bin ldd vcjsondb.exe | awk '/=> \/${{ matrix.mingw_arch }}/{print $(NF-1)}' | while read -r libpath; do cp -r $libpath bin/; done
+          env PATH=$PATH:/${{ matrix.mingw_arch }}/bin ldd vcjsondb.exe | awk '{ arch = tolower(${{ matrix.mingw_arch }}); path = tolower($0);  if (path ~ "=> /" arch) print $(NF-1) }' | while read -r libpath; do cp -r $libpath bin/; done
           cd ..
 
       - name: upload executable artifact
