@@ -62,11 +62,11 @@ jobs:
         run: |
           mkdir build
           cd build
-          env PATH=$PATH:/${{ matrix.mingw_arch }}/bin cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_C_COMPILER=${{ matrix.c }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} -G Ninja ..
+          env PATH=$PATH:/${{ matrix.mingw_arch }}/bin cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=${{ matrix.c }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} -G Ninja ..
           env PATH=$PATH:/${{ matrix.mingw_arch }}/bin ninja
           mkdir bin
           cp vcjsondb.exe bin/
-          env PATH=$PATH:/${{ matrix.mingw_arch }}/bin ldd vcjsondb.exe | awk '{ arch = tolower(${{ matrix.mingw_arch }}); path = tolower($0);  if (path ~ "=> /" arch) print $(NF-1) }' | while read -r libpath; do cp -r $libpath bin/; done
+          env PATH=$PATH:/${{ matrix.mingw_arch }}/bin ldd vcjsondb.exe | awk -v mingwarch="${{ matrix.mingw_arch }}" '{ arch = tolower(mingwarch); path = tolower($0);  if (path ~ "=> /" arch) print $(NF-1) }' | while read -r libpath; do cp -r $libpath bin/; done
           cd ..
 
       - name: upload executable artifact
