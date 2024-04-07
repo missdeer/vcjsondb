@@ -3,6 +3,7 @@
 #include <map>
 #include <string>
 #include <vector>
+#include <boost/algorithm/string.hpp>
 #include <boost/process.hpp>
 
 #include "utils.h"
@@ -127,11 +128,12 @@ std::string getNewerMSVSInstallPath(const std::string &toolset, bool isLegacy /*
     std::string result;
     while (std::getline(out_stream, line))
     {
-        result += line + '\n';
+        result += line;
     }
 
     child_process.wait();
-
+    // trim result string
+    boost::algorithm::trim(result);
     return result;
 }
 
@@ -148,16 +150,23 @@ void getVCIncludedDirectories(const std::string &toolset, std::vector<std::strin
     {
         // VS 2017/2019/2022 or higher, earlier versions support is dropped
         auto installPath = getNewerMSVSInstallPath(toolset);
-        auto msvcPath    = installPath + R"(\VC\Tools\MSVC)";
-
+        auto msvcPath    = installPath + R"(\VC\Tools\MSVC)"; 
+        
         // populate the latest one
         std::vector<std::string> subdirs;
-        for (const auto &entry : fs::directory_iterator(msvcPath))
+        try
         {
-            if (entry.is_directory())
+            for (const auto &entry : fs::directory_iterator(msvcPath))
             {
-                subdirs.push_back(entry.path().filename().string());
+                if (entry.is_directory())
+                {
+                    subdirs.push_back(entry.path().filename().string());
+                }
             }
+        }
+        catch (const std::exception &e)
+        {
+            std::cerr << e.what() << std::endl;
         }
 
         std::string mscVer;
