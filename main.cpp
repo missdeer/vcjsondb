@@ -20,7 +20,6 @@ namespace
 {
     std::string outputDirectory;
     std::string target;
-    bool        fileInserted = false;
 } // namespace
 
 bool parseVcxprojFile(const std::string &filePath, std::ofstream &ofs)
@@ -151,7 +150,7 @@ bool parseVcxprojFile(const std::string &filePath, std::ofstream &ofs)
     {
         languageStandard = std::string(languageStandardNode->value(), languageStandardNode->value_size());
     }
-    const std::map<std::string, std::string> languageStandardMap = {
+    static const std::map<std::string, std::string> languageStandardMap = {
         {"stdcpp11", "-std=c++11"},
         {"stdcpp14", "-std=c++14"},
         {"stdcpp17", "-std=c++17"},
@@ -223,8 +222,43 @@ bool parseVcxprojFile(const std::string &filePath, std::ofstream &ofs)
         return boost::algorithm::replace_all_copy(p.lexically_normal().string(), "\\", "/");
     });
 
-    const std::string cppCmd = R"(  "command": "\"clang++.exe\" -x c++ \")";
-    const std::string cCmd   = R"(  "command": "\"clang.exe\" -x c \")";
+    std::stringstream sstream;
+    sstream << " -fsyntax-only";
+    for (const auto &preprocessorDefinition : preprocessorDefinitions)
+    {
+        sstream << R"( \"-D)" << preprocessorDefinition << R"(\")";
+    }
+    if (charset == "Unicode")
+    {
+        sstream << R"( \"-DUNICODE\" \"-D_UNICODE\")";
+    }
+    if (useOfMFC)
+    {
+        sstream << R"( \"-D_AFXDLL\")";
+    }
+    if (isMultiThread)
+    {
+        sstream << R"( \"-D_MT\")";
+    }
+    if (isDLL)
+    {
+        sstream << R"( \"-D_DLL\")";
+    }
+    for (const auto &systemIncludedDirectory : systemIncludedDirectories)
+    {
+        sstream << R"( -isystem\")" << systemIncludedDirectory << R"(\")";
+    }
+    for (const auto &additionalIncludedDirectory : additionalIncludedDirectories)
+    {
+        sstream << R"( -I\")" << additionalIncludedDirectory << R"(\")";
+    }
+
+    sstream << "\"\n},";
+    const std::string optionsStr = sstream.str();
+    const std::string dirStr     = "\n{\n  \"directory\": \"" + vcxprojParentDirStr + "\",\n";
+    const std::string cppCmd     = R"(  "command": "\"clang++.exe\" -x c++ \")";
+    const std::string cCmd       = R"(  "command": "\"clang.exe\" -x c \")";
+
     for (auto *itemGroupNode = rootNode->first_node("ItemGroup"); itemGroupNode != nullptr; itemGroupNode = itemGroupNode->next_sibling("ItemGroup"))
     {
         auto *clCompileNode = itemGroupNode->first_node("ClCompile");
@@ -233,59 +267,23 @@ bool parseVcxprojFile(const std::string &filePath, std::ofstream &ofs)
             auto *includeAttr = clCompileNode->first_attribute("Include");
             if (!includeAttr)
             {
+                std::cerr << "cannot find Include attribute" << std::endl;
                 continue;
             }
-            const std::string cppFile(includeAttr->value(), includeAttr->value_size());
-            const std::string cppFileStr = boost::algorithm::replace_all_copy(cppFile, "\\", "/");
-            const bool        isCpp      = !boost::algorithm::iends_with(cppFile, ".c");
+            std::string srcFile(includeAttr->value(), includeAttr->value_size());
+            std::replace(srcFile.begin(), srcFile.end(), '\\', '/');
+            const bool isCpp = !boost::algorithm::iends_with(srcFile, ".c");
 
-            if (!fileInserted)
+            ofs << dirStr << R"(  "file": ")" << srcFile << "\",\n";
+            if (isCpp)
             {
-                fileInserted = true;
+                ofs << cppCmd << srcFile << R"(\" )" << languageStandard;
             }
             else
             {
-                ofs << ",\n";
+                ofs << cCmd << srcFile << R"(\")";
             }
-            ofs << "{\n"
-                << R"(  "directory": ")" << vcxprojParentDirStr << R"(",)" << "\n"
-                << R"(  "file": ")" << cppFileStr << R"(",)" << "\n"
-                << (isCpp ? cppCmd : cCmd) << cppFileStr << R"(\" -fsyntax-only )";
-            if (isCpp)
-            {
-                ofs << languageStandard << " ";
-            }
-
-            for (const auto &preprocessorDefinition : preprocessorDefinitions)
-            {
-                ofs << R"( \"-D)" << preprocessorDefinition << R"(\" )";
-            }
-            if (charset == "Unicode")
-            {
-                ofs << R"( \"-DUNICODE\" \"-D_UNICODE\" )";
-            }
-            if (useOfMFC)
-            {
-                ofs << R"( \"-D_AFXDLL\" )";
-            }
-            if (isMultiThread)
-            {
-                ofs << R"( \"-D_MT\" )";
-            }
-            if (isDLL)
-            {
-                ofs << R"( \"-D_DLL\" )";
-            }
-            for (const auto &systemIncludedDirectory : systemIncludedDirectories)
-            {
-                ofs << R"( -isystem\")" << systemIncludedDirectory << R"(\" )";
-            }
-            for (const auto &additionalIncludedDirectory : additionalIncludedDirectories)
-            {
-                ofs << R"( -I\")" << additionalIncludedDirectory << R"(\" )";
-            }
-
-            ofs << "\"\n}";
+            ofs << optionsStr;
         }
     }
 
@@ -432,13 +430,17 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    ofs << "[\n";
-    for (const auto &file : inputVcxprojFiles)
+    ofs << "[";
+
+    for (const auto &inputVcxprojFile : inputVcxprojFiles)
     {
-        parseVcxprojFile(file, ofs);
+        parseVcxprojFile(inputVcxprojFile, ofs);
     }
 
+    // remove the last comma
+    ofs.seekp(-1, std::ios::cur);
     ofs << "\n]\n";
+    ofs.flush();
     ofs.close();
 
     std::cout << outputPath.string() << " is written" << std::endl;
