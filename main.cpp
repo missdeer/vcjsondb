@@ -292,7 +292,7 @@ bool parseVcxprojFile(const std::string &filePath, std::ofstream &ofs)
     return true;
 }
 
-bool parseSlnFile(const std::string &filePath, std::ofstream &ofs)
+bool parseSlnFile(const std::string &filePath, std::vector<std::string> &inputVcxprojFiles)
 {
     fs::path slnFilePath(fs::absolute(fs::path(filePath)));
     if (!fs::exists(slnFilePath))
@@ -323,7 +323,7 @@ bool parseSlnFile(const std::string &filePath, std::ofstream &ofs)
         fs::path vcxprojFullPath = slnParentDirPath / vcxprojPath;
         vcxprojFullPath          = vcxprojFullPath.lexically_normal();
 
-        parseVcxprojFile(vcxprojFullPath.string(), ofs);
+        inputVcxprojFiles.push_back(vcxprojFullPath.string());
 
         input = match.suffix().str();
     }
@@ -332,15 +332,15 @@ bool parseSlnFile(const std::string &filePath, std::ofstream &ofs)
 
 int main(int argc, char *argv[])
 {
-    std::string inputFile;
+    std::vector<std::string> inputFiles;
 
     po::options_description desc("Allowed options");
     desc.add_options()("help,h",
                        "produce help message")("target,t", po::value<std::string>(&target)->default_value("Release|x64"), "set build target")(
         "output-directory,o", po::value<std::string>(&outputDirectory)->default_value("."), "output directory")(
         "input-path,i",
-        po::value<std::string>(&inputFile)->default_value(""),
-        "input a .sln or .vcxproj file path, or a directory path contains .sln/.vcxproj files");
+        po::value<std::vector<std::string>>(&inputFiles)->multitoken(),
+        "input a .sln or .vcxproj file path, or a directory path contains .sln/.vcxproj files, can have multiple inputs");
 
     po::variables_map varMap;
     po::store(po::parse_command_line(argc, argv, desc), varMap);
@@ -352,48 +352,71 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    if (inputFile.empty())
+    if (inputFiles.empty())
     {
         std::cerr << "No input file is specified." << std::endl;
         return 1;
     }
 
-    std::vector<std::string> inputFiles;
-    fs::path                 inputPath(inputFile);
-    if (fs::is_directory(inputPath))
-    {
-        // traverse this directory, find all .sln files
-        for (const auto &entry : std::filesystem::directory_iterator(inputPath))
-        {
-            if (entry.is_regular_file() && boost::iends_with(entry.path().string(), ".sln"))
-            {
-                inputFiles.push_back(entry.path().string());
-            }
-        }
-    }
-    else if (fs::is_regular_file(inputPath) && (boost::iends_with(inputFile, ".sln") || boost::iends_with(inputFile, ".vcxproj")))
-    {
-        inputFiles.push_back(inputFile);
-    }
-
-    if (inputFiles.empty())
+    std::vector<std::string> inputSlnFiles;
+    std::vector<std::string> inputVcxprojFiles;
+    for (const auto &inputFile : inputFiles)
     {
         fs::path inputPath(inputFile);
         if (fs::is_directory(inputPath))
         {
-            // traverse this directory, find all .vcxproj files
+            // traverse this directory, find all .sln files
             for (const auto &entry : std::filesystem::directory_iterator(inputPath))
             {
-                if (entry.is_regular_file() && boost::iends_with(entry.path().string(), ".vcxproj"))
+                if (entry.is_regular_file())
                 {
-                    inputFiles.push_back(entry.path().string());
+                    const auto normalizedInputFilePath = entry.path().lexically_normal().string();
+                    if (boost::iends_with(normalizedInputFilePath, ".sln"))
+                    {
+                        inputSlnFiles.push_back(normalizedInputFilePath);
+                    }
+                    else if (boost::iends_with(normalizedInputFilePath, ".vcxproj"))
+                    {
+                        inputVcxprojFiles.push_back(normalizedInputFilePath);
+                    }
                 }
             }
         }
+        else if (fs::is_regular_file(inputPath))
+        {
+            const auto normalizedInputFilePath = inputPath.lexically_normal().string();
+            if (boost::iends_with(inputFile, ".sln"))
+            {
+                inputSlnFiles.push_back(normalizedInputFilePath);
+            }
+            else if (boost::iends_with(inputFile, ".vcxproj"))
+            {
+                inputVcxprojFiles.push_back(normalizedInputFilePath);
+            }
+        }
     }
-    if (inputFiles.empty())
+
+    // remove duplicated elements in inputSlnFiles
+    std::sort(inputSlnFiles.begin(), inputSlnFiles.end(), [](const std::string &a, const std::string &b) {
+        return boost::algorithm::to_lower_copy(a) < boost::algorithm::to_lower_copy(b);
+    });
+    inputSlnFiles.erase(std::unique(inputSlnFiles.begin(), inputSlnFiles.end()), inputSlnFiles.end());
+
+    // parse .sln files
+    for (const auto &file : inputSlnFiles)
     {
-        std::cerr << "No .sln or .vcxproj file is found." << std::endl;
+        parseSlnFile(file, inputVcxprojFiles);
+    }
+
+    // remove duplicated elements in inputVcxprojFiles
+    std::sort(inputVcxprojFiles.begin(), inputVcxprojFiles.end(), [](const std::string &a, const std::string &b) {
+        return boost::algorithm::to_lower_copy(a) < boost::algorithm::to_lower_copy(b);
+    });
+    inputVcxprojFiles.erase(std::unique(inputVcxprojFiles.begin(), inputVcxprojFiles.end()), inputVcxprojFiles.end());
+
+    if (inputVcxprojFiles.empty())
+    {
+        std::cerr << "No valid .vcxproj file is found." << std::endl;
         return 1;
     }
 
@@ -408,17 +431,11 @@ int main(int argc, char *argv[])
         std::cerr << "Error opening file " << outputPath.string() << std::endl;
         return 1;
     }
+
     ofs << "[\n";
-    for (const auto &file : inputFiles)
+    for (const auto &file : inputVcxprojFiles)
     {
-        if (boost::algorithm::iends_with(file, ".vcxproj"))
-        {
-            parseVcxprojFile(file, ofs);
-        }
-        if (boost::algorithm::iends_with(file, ".sln"))
-        {
-            parseSlnFile(file, ofs);
-        }
+        parseVcxprojFile(file, ofs);
     }
 
     ofs << "\n]\n";
