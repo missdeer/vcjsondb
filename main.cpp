@@ -22,6 +22,60 @@ namespace
     std::string target;
 } // namespace
 
+struct NormalizePathFunctor
+{
+    std::string operator()(const std::string &str)
+    {
+        fs::path p(str);
+        auto     normalizedPath = p.lexically_normal().string();
+        std::replace(normalizedPath.begin(), normalizedPath.end(), '\\', '/');
+        return normalizedPath;
+    };
+};
+
+std::string getGlobalOptions(const std::vector<std::string> &preprocessorDefinitions,
+                             const std::string              &charset,
+                             bool                            useOfMFC,
+                             bool                            isMultiThread,
+                             bool                            isDLL,
+                             const std::string              &toolset,
+                             const std::string              &sdkVer)
+{
+    std::stringstream sstream;
+    sstream << " -fsyntax-only";
+    for (const auto &preprocessorDefinition : preprocessorDefinitions)
+    {
+        sstream << R"( \"-D)" << preprocessorDefinition << R"(\")";
+    }
+    if (charset == "Unicode")
+    {
+        sstream << R"( \"-DUNICODE\" \"-D_UNICODE\")";
+    }
+    if (useOfMFC)
+    {
+        sstream << R"( \"-D_AFXDLL\")";
+    }
+    if (isMultiThread)
+    {
+        sstream << R"( \"-D_MT\")";
+    }
+    if (isDLL)
+    {
+        sstream << R"( \"-D_DLL\")";
+    }
+
+    std::vector<std::string> systemIncludedDirectories;
+    getVCIncludedDirectories(toolset, systemIncludedDirectories, useOfMFC);
+    getSDKIncludedDirectories(sdkVer, systemIncludedDirectories);
+    std::transform(systemIncludedDirectories.begin(), systemIncludedDirectories.end(), systemIncludedDirectories.begin(), NormalizePathFunctor());
+
+    for (const auto &systemIncludedDirectory : systemIncludedDirectories)
+    {
+        sstream << R"( -isystem\")" << systemIncludedDirectory << R"(\")";
+    }
+    return sstream.str();
+}
+
 bool parseVcxprojFile(const std::string &filePath, std::ofstream &ofs)
 {
     fs::path vcxprojFilePath(fs::absolute(fs::path(filePath)));
@@ -176,13 +230,6 @@ bool parseVcxprojFile(const std::string &filePath, std::ofstream &ofs)
         isMultiThread = (runtimeLibrary == "MultiThreadedDLL" || runtimeLibrary == "MultiThreaded");
     }
 
-    auto fnNormalizePath = [](const std::string &str) {
-            fs::path p(str);
-            auto     normalizedPath = p.lexically_normal().string();
-            std::replace(normalizedPath.begin(), normalizedPath.end(), '\\', '/');
-            return normalizedPath;
-        };
-
     auto *additionalIncludedDirectoriesNode = clCompileNode->first_node("AdditionalIncludeDirectories");
     if (!additionalIncludedDirectoriesNode)
     {
@@ -197,7 +244,7 @@ bool parseVcxprojFile(const std::string &filePath, std::ofstream &ofs)
     });
     additionalIncludedDirectories.erase(iterRemove, additionalIncludedDirectories.end());
     std::transform(
-        additionalIncludedDirectories.begin(), additionalIncludedDirectories.end(), additionalIncludedDirectories.begin(), fnNormalizePath);
+        additionalIncludedDirectories.begin(), additionalIncludedDirectories.end(), additionalIncludedDirectories.begin(), NormalizePathFunctor());
 
     auto *preprocessorDefinitionsNode = clCompileNode->first_node("PreprocessorDefinitions");
     if (!preprocessorDefinitionsNode)
@@ -218,47 +265,20 @@ bool parseVcxprojFile(const std::string &filePath, std::ofstream &ofs)
         boost::algorithm::replace_all(preprocessorDefinition, R"(")", R"(/\")");
     }
 
-    std::vector<std::string> systemIncludedDirectories;
-    getVCIncludedDirectories(toolset, systemIncludedDirectories);
-    getSDKIncludedDirectories(sdkVer, systemIncludedDirectories);
-    std::transform(systemIncludedDirectories.begin(), systemIncludedDirectories.end(), systemIncludedDirectories.begin(), fnNormalizePath);
-
-    std::stringstream sstream;
-    sstream << " -fsyntax-only";
-    for (const auto &preprocessorDefinition : preprocessorDefinitions)
-    {
-        sstream << R"( \"-D)" << preprocessorDefinition << R"(\")";
-    }
-    if (charset == "Unicode")
-    {
-        sstream << R"( \"-DUNICODE\" \"-D_UNICODE\")";
-    }
-    if (useOfMFC)
-    {
-        sstream << R"( \"-D_AFXDLL\")";
-    }
-    if (isMultiThread)
-    {
-        sstream << R"( \"-D_MT\")";
-    }
-    if (isDLL)
-    {
-        sstream << R"( \"-D_DLL\")";
-    }
-    for (const auto &systemIncludedDirectory : systemIncludedDirectories)
-    {
-        sstream << R"( -isystem\")" << systemIncludedDirectory << R"(\")";
-    }
+    static const std::string globalOptionsStr = getGlobalOptions(preprocessorDefinitions, charset, useOfMFC, isMultiThread, isDLL, toolset, sdkVer);
+    std::stringstream        sstream;
+    sstream << globalOptionsStr;
     for (const auto &additionalIncludedDirectory : additionalIncludedDirectories)
     {
         sstream << R"( -I\")" << additionalIncludedDirectory << R"(\")";
     }
 
     sstream << "\"\n},";
-    const std::string optionsStr = sstream.str();
-    const std::string dirStr     = "\n{\n  \"directory\": \"" + vcxprojParentDirStr + "\",\n";
-    const std::string cppCmd     = R"(  "command": "\"clang++.exe\" -x c++ \")";
-    const std::string cCmd       = R"(  "command": "\"clang.exe\" -x c \")";
+    const std::string        optionsStr = sstream.str();
+    const std::string        dirStr     = "\n{\n  \"directory\": \"" + vcxprojParentDirStr + "\",\n";
+    static const std::string clPath     = boost::algorithm::replace_all_copy(getClPath(toolset), "\\", "/");
+    static const std::string cppCmd     = R"(  "command": "\")" + clPath + R"(\" -x c++ \")";
+    static const std::string cCmd       = R"(  "command": "\")" + clPath + R"(\" -x c \")";
 
     for (auto *itemGroupNode = rootNode->first_node("ItemGroup"); itemGroupNode != nullptr; itemGroupNode = itemGroupNode->next_sibling("ItemGroup"))
     {

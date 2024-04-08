@@ -103,7 +103,7 @@ std::string getMSVS2015IntallPath()
     return result;
 }
 
-std::string getNewerMSVSInstallPath(const std::string &toolset, bool isLegacy /*= false*/)
+std::string getNewerMSVSInstallPath(const std::string &toolset, bool isLegacy = false)
 {
     const std::map<const std::string, const std::string> verMap = {
         {"v140", "[14.0,15.0)"}, // 2015
@@ -134,47 +134,82 @@ std::string getNewerMSVSInstallPath(const std::string &toolset, bool isLegacy /*
     return result;
 }
 
-void getVCIncludedDirectories(const std::string &toolset, std::vector<std::string> &directories)
+std::string getNewerMSCVer(const std::string &msvcPath)
+{
+    // populate the latest one
+    std::vector<std::string> subdirs;
+    try
+    {
+        for (const auto &entry : fs::directory_iterator(msvcPath))
+        {
+            if (entry.is_directory())
+            {
+                subdirs.push_back(entry.path().filename().string());
+            }
+        }
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << e.what() << std::endl;
+        return {};
+    }
+
+    std::string mscVer;
+    if (!subdirs.empty())
+    {
+        std::sort(subdirs.begin(), subdirs.end());
+        mscVer = *subdirs.rbegin();
+    }
+
+    return mscVer;
+}
+
+void getVCIncludedDirectories(const std::string &toolset, std::vector<std::string> &directories, bool useOfMFC)
 {
     if (toolset == "v140")
     {
         // VS 2015
         const auto installPath = getMSVS2015IntallPath();
         directories.push_back(installPath + R"(\VC\include)");
-        directories.push_back(installPath + R"(\VC\atlmfc\include)");
+        if (useOfMFC)
+        {
+            directories.push_back(installPath + R"(\VC\atlmfc\include)");
+        }
     }
     else
     {
         // VS 2017/2019/2022 or higher, earlier versions support is dropped
-        const auto installPath = getNewerMSVSInstallPath(toolset);
-        const auto msvcPath    = installPath + R"(\VC\Tools\MSVC)";
+        const auto        installPath = getNewerMSVSInstallPath(toolset);
+        const auto        msvcPath    = installPath + R"(\VC\Tools\MSVC)";
+        const std::string mscVer      = getNewerMSCVer(msvcPath);
 
-        // populate the latest one
-        std::vector<std::string> subdirs;
-        try
+        if (useOfMFC)
         {
-            for (const auto &entry : fs::directory_iterator(msvcPath))
-            {
-                if (entry.is_directory())
-                {
-                    subdirs.push_back(entry.path().filename().string());
-                }
-            }
+            directories.push_back(installPath + R"(\VC\Tools\MSVC\)" + mscVer + R"(\atlmfc\include)");
         }
-        catch (const std::exception &e)
-        {
-            std::cerr << e.what() << std::endl;
-        }
-
-        std::string mscVer;
-        if (!subdirs.empty())
-        {
-            std::sort(subdirs.begin(), subdirs.end());
-            mscVer = *subdirs.rbegin();
-        }
-
         directories.push_back(installPath + R"(\VC\Tools\MSVC\)" + mscVer + R"(\include)");
-        directories.push_back(installPath + R"(\VC\Tools\MSVC\)" + mscVer + R"(\atlmfc\include)");
         directories.push_back(installPath + R"(\VC\Auxiliary\VS\include)");
     }
+}
+
+std::string getClPath(const std::string &toolset)
+{
+    if (toolset == "v140")
+    {
+        // VS 2015
+        const auto installPath = getMSVS2015IntallPath();
+        return installPath + R"(\VC\bin\cl.exe)";
+    }
+
+    // VS 2017/2019/2022 or higher, earlier versions support is dropped
+    const auto        installPath = getNewerMSVSInstallPath(toolset);
+    const auto        msvcPath    = installPath + R"(\VC\Tools\MSVC)";
+    const std::string mscVer      = getNewerMSCVer(msvcPath);
+    if (mscVer.empty())
+    {
+        std::cerr << "cannot find MSVC version" << std::endl;
+        return "cl.exe";
+    }
+
+    return installPath + R"(\VC\Tools\MSVC\)" + mscVer + R"(\bin\Hostx64\x64\cl.exe)";
 }
