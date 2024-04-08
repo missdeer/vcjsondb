@@ -219,7 +219,9 @@ bool parseVcxprojFile(const std::string &filePath, std::ofstream &ofs)
     getSDKIncludedDirectories(sdkVer, systemIncludedDirectories);
     std::transform(systemIncludedDirectories.begin(), systemIncludedDirectories.end(), systemIncludedDirectories.begin(), [](const auto &str) {
         fs::path p(str);
-        return boost::algorithm::replace_all_copy(p.lexically_normal().string(), "\\", "/");
+        auto normalizedPath = p.lexically_normal().string();
+        std::replace(normalizedPath.begin(), normalizedPath.end(), '\\', '/');
+        return normalizedPath;
     });
 
     std::stringstream sstream;
