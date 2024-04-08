@@ -176,6 +176,13 @@ bool parseVcxprojFile(const std::string &filePath, std::ofstream &ofs)
         isMultiThread = (runtimeLibrary == "MultiThreadedDLL" || runtimeLibrary == "MultiThreaded");
     }
 
+    auto fnNormalizePath = [](const std::string &str) {
+            fs::path p(str);
+            auto     normalizedPath = p.lexically_normal().string();
+            std::replace(normalizedPath.begin(), normalizedPath.end(), '\\', '/');
+            return normalizedPath;
+        };
+
     auto *additionalIncludedDirectoriesNode = clCompileNode->first_node("AdditionalIncludeDirectories");
     if (!additionalIncludedDirectoriesNode)
     {
@@ -190,10 +197,7 @@ bool parseVcxprojFile(const std::string &filePath, std::ofstream &ofs)
     });
     additionalIncludedDirectories.erase(iterRemove, additionalIncludedDirectories.end());
     std::transform(
-        additionalIncludedDirectories.begin(), additionalIncludedDirectories.end(), additionalIncludedDirectories.begin(), [](const auto &str) {
-            fs::path p(str);
-            return boost::algorithm::replace_all_copy(p.lexically_normal().string(), "\\", "/");
-        });
+        additionalIncludedDirectories.begin(), additionalIncludedDirectories.end(), additionalIncludedDirectories.begin(), fnNormalizePath);
 
     auto *preprocessorDefinitionsNode = clCompileNode->first_node("PreprocessorDefinitions");
     if (!preprocessorDefinitionsNode)
@@ -217,12 +221,7 @@ bool parseVcxprojFile(const std::string &filePath, std::ofstream &ofs)
     std::vector<std::string> systemIncludedDirectories;
     getVCIncludedDirectories(toolset, systemIncludedDirectories);
     getSDKIncludedDirectories(sdkVer, systemIncludedDirectories);
-    std::transform(systemIncludedDirectories.begin(), systemIncludedDirectories.end(), systemIncludedDirectories.begin(), [](const auto &str) {
-        fs::path p(str);
-        auto normalizedPath = p.lexically_normal().string();
-        std::replace(normalizedPath.begin(), normalizedPath.end(), '\\', '/');
-        return normalizedPath;
-    });
+    std::transform(systemIncludedDirectories.begin(), systemIncludedDirectories.end(), systemIncludedDirectories.begin(), fnNormalizePath);
 
     std::stringstream sstream;
     sstream << " -fsyntax-only";

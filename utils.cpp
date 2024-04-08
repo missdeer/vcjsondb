@@ -1,8 +1,6 @@
 #include <filesystem>
 #include <iostream>
 #include <map>
-#include <string>
-#include <vector>
 #include <boost/algorithm/string.hpp>
 #include <boost/process.hpp>
 
@@ -16,17 +14,16 @@ namespace fs = std::filesystem;
 #if (defined(_MSC_VER) && _MSC_VER >= 1900) || defined(__clang__)
 std::string getProgramFilesX86Path()
 {
-    char       *programFilesX86Path = nullptr;
-    size_t      len                 = 0;
-    errno_t     err                 = _dupenv_s(&programFilesX86Path, &len, "ProgramFiles(x86)");
-    std::string sdkIncludePath;
+    char   *programFilesX86Path = nullptr;
+    size_t  len                 = 0;
+    errno_t err                 = _dupenv_s(&programFilesX86Path, &len, "ProgramFiles(x86)");
     if (err != 0 || programFilesX86Path == nullptr)
     {
         std::cerr << "cannot find ProgramFiles(x86) environment vairable" << std::endl;
         return R"(C:\Program Files (x86))";
     }
 
-    std::string res(programFilesX86Path);
+    const std::string res(programFilesX86Path);
 
     // use the path_env
     free(programFilesX86Path);
@@ -49,7 +46,7 @@ std::string getProgramFilesX86Path()
 
 bool getSDKIncludedDirectories(const std::string &sdkVer, std::vector<std::string> &directories)
 {
-    std::string sdkIncludePath = getProgramFilesX86Path() + R"(\Windows Kits\10\Include\)";
+    const std::string sdkIncludePath = getProgramFilesX86Path() + R"(\Windows Kits\10\Include\)";
 
     auto useSDKVer = sdkVer;
     if (useSDKVer == "10.0")
@@ -115,8 +112,8 @@ std::string getNewerMSVSInstallPath(const std::string &toolset, bool isLegacy /*
         {"v143", "[17.0,18.0)"}, // 2022
     };
 
-    std::string vswherePath = getProgramFilesX86Path() + R"(\Microsoft Visual Studio\Installer\vswhere.exe)";
-    std::string cmd         = "\"" + vswherePath + "\"  -version " + verMap.at(toolset) + " -property installationPath";
+    const std::string vswherePath = getProgramFilesX86Path() + R"(\Microsoft Visual Studio\Installer\vswhere.exe)";
+    std::string       cmd         = "\"" + vswherePath + "\"  -version " + verMap.at(toolset) + " -property installationPath";
     if (isLegacy)
     {
         cmd += " -legacy";
@@ -142,16 +139,16 @@ void getVCIncludedDirectories(const std::string &toolset, std::vector<std::strin
     if (toolset == "v140")
     {
         // VS 2015
-        auto installPath = getMSVS2015IntallPath();
+        const auto installPath = getMSVS2015IntallPath();
         directories.push_back(installPath + R"(\VC\include)");
         directories.push_back(installPath + R"(\VC\atlmfc\include)");
     }
     else
     {
         // VS 2017/2019/2022 or higher, earlier versions support is dropped
-        auto installPath = getNewerMSVSInstallPath(toolset);
-        auto msvcPath    = installPath + R"(\VC\Tools\MSVC)"; 
-        
+        const auto installPath = getNewerMSVSInstallPath(toolset);
+        const auto msvcPath    = installPath + R"(\VC\Tools\MSVC)";
+
         // populate the latest one
         std::vector<std::string> subdirs;
         try

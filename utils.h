@@ -1,5 +1,8 @@
 #pragma once
 
+#include <string>
+#include <vector>
+
 std::string getProgramFilesX86Path();
 bool        getSDKIncludedDirectories(const std::string &sdkVer, std::vector<std::string> &directories);
 std::string getMSVS2015IntallPath();
