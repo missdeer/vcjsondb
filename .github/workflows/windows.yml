@@ -32,14 +32,12 @@ jobs:
         toolset: [cl, clang-cl, icx]
         include:
           - toolset: icx
-            vcpkg_triplet: x64-windows-release
-            vcpkg_pkgs: boost-process boost-filesystem boost-program-options
+            vcpkg_triplet: x64-windows-static
           - toolset: clang-cl
             vcpkg_triplet: x64-windows-static
-            vcpkg_pkgs: boost-process boost-filesystem boost-program-options
           - toolset: cl
             vcpkg_triplet: x64-windows-static
-            vcpkg_pkgs: boost-process boost-filesystem boost-program-options
+            
     steps:
       - uses: actions/checkout@v2
         with:
@@ -50,7 +48,7 @@ jobs:
         uses: johnwason/vcpkg-action@v5
         id: vcpkg
         with:
-          pkgs: ${{ matrix.vcpkg_pkgs }}
+          pkgs: boost-process boost-filesystem boost-program-options
           triplet: ${{ matrix.vcpkg_triplet }}
           token: ${{ github.token }}
 
@@ -102,15 +100,6 @@ jobs:
             cmake --build . --parallel --verbose
             mkdir bin
             copy vcjsondb.exe bin\
-
-      - name: copy oneAPI redist files
-        if: matrix.toolset == 'icx'
-        shell: cmd
-        run: |
-            for /f "tokens=* usebackq" %%f in (`dir /b "C:\Program Files (x86)\Intel\oneAPI\compiler\" ^| findstr /V latest ^| sort`) do @set "LATEST_VERSION=%%f"
-            echo %LATEST_VERSION%
-            copy /y build\*.dll build\bin\
-
 
       - name: upload executable artifact
         uses: actions/upload-artifact@v1
