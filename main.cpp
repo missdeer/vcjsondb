@@ -45,23 +45,30 @@ std::string getGlobalOptions(const std::vector<std::string> &preprocessorDefinit
     sstream << " -fsyntax-only";
     for (const auto &preprocessorDefinition : preprocessorDefinitions)
     {
-        sstream << R"( \"-D)" << preprocessorDefinition << R"(\")";
+        if (std::any_of(preprocessorDefinition.begin(), preprocessorDefinition.end(), [](const char c) { return c == ' '; }))
+        {
+            sstream << R"( \"-D)" << preprocessorDefinition << R"(\")";
+        }
+        else
+        {
+            sstream << " -D" << preprocessorDefinition;
+        }
     }
     if (charset == "Unicode")
     {
-        sstream << R"( \"-DUNICODE\" \"-D_UNICODE\")";
+        sstream << " -DUNICODE -D_UNICODE";
     }
     if (useOfMFC)
     {
-        sstream << R"( \"-D_AFXDLL\")";
+        sstream << " -D_AFXDLL";
     }
     if (isMultiThread)
     {
-        sstream << R"( \"-D_MT\")";
+        sstream << " -D_MT";
     }
     if (isDLL)
     {
-        sstream << R"( \"-D_DLL\")";
+        sstream << " -D_DLL";
     }
 
     std::vector<std::string> systemIncludedDirectories;
@@ -71,7 +78,14 @@ std::string getGlobalOptions(const std::vector<std::string> &preprocessorDefinit
 
     for (const auto &systemIncludedDirectory : systemIncludedDirectories)
     {
-        sstream << R"( -isystem\")" << systemIncludedDirectory << R"(\")";
+        if (std::any_of(systemIncludedDirectory.begin(), systemIncludedDirectory.end(), [](const char c) { return c == ' '; }))
+        {
+            sstream << R"( -isystem\")" << systemIncludedDirectory << R"(\")";
+        }
+        else
+        {
+            sstream << "-isystem " << systemIncludedDirectory;
+        }
     }
     return sstream.str();
 }
@@ -270,7 +284,14 @@ bool parseVcxprojFile(const std::string &filePath, std::ofstream &ofs)
     sstream << globalOptionsStr;
     for (const auto &additionalIncludedDirectory : additionalIncludedDirectories)
     {
-        sstream << R"( -I\")" << additionalIncludedDirectory << R"(\")";
+        if (std::any_of(additionalIncludedDirectory.begin(), additionalIncludedDirectory.end(), [](const char c) { return c == ' '; }))
+        {
+            sstream << R"( -I\")" << additionalIncludedDirectory << R"(\")";
+        }
+        else
+        {
+            sstream << " -I" << additionalIncludedDirectory;
+        }
     }
 
     sstream << "\"\n},";
