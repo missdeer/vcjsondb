@@ -8,7 +8,130 @@ on:
     paths-ignore:
       - 'README.md'
       - 'LICENSE'
+
+env:
+  WINDOWS_BASEKIT_URL: https://registrationcenter-download.intel.com/akdlm/IRC_NAS/62641e01-1e8d-4ace-91d6-ae03f7f8a71f/w_BaseKit_p_2024.0.0.49563_offline.exe
+  WINDOWS_HPCKIT_URL: https://registrationcenter-download.intel.com/akdlm/IRC_NAS/5b36181e-4974-4733-91c7-0c10c54900a5/w_HPCKit_p_2024.0.0.49588_offline.exe
+  WINDOWS_CPP_COMPONENTS: intel.oneapi.win.cpp-dpcpp-common
+  WINDOWS_DPCPP_COMPONENTS: intel.oneapi.win.cpp-dpcpp-common
+  CACHE_NUMBER: 6
+  SAMPLES_TAG: 2024.0.0
+  COMPILER_VERSION: 2024.0.0
+  TBB_VERSION: 2021.11.0
+  VS_VER: vs2022
+  vc_arch: "x64"
+  output_dir: "x86_64"
+  clang_link: https://github.com/llvm/llvm-project/releases/download/llvmorg-18.1.3/LLVM-18.1.3-win64.exe
+  ninja_link: https://github.com/ninja-build/ninja/releases/download/v1.11.1/ninja-win.zip
+
 jobs:          
+  Windows-MSVC:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        toolset: [cl, clang-cl, icx]
+        include:
+          - toolset: icx
+            vcpkg_triplet: x64-windows-release
+            vcpkg_pkgs: boost-process boost-filesystem boost-program-options
+          - toolset: clang-cl
+            vcpkg_triplet: x64-windows-static
+            vcpkg_pkgs: boost-process boost-filesystem boost-program-options
+          - toolset: cl
+            vcpkg_triplet: x64-windows-static
+            vcpkg_pkgs: boost-process boost-filesystem boost-program-options
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
+          submodules: true
+
+      - name: vcpkg build
+        uses: johnwason/vcpkg-action@v5
+        id: vcpkg
+        with:
+          pkgs: ${{ matrix.vcpkg_pkgs }}
+          triplet: ${{ matrix.vcpkg_triplet }}
+          token: ${{ github.token }}
+
+      - name: Set up clang for Windows
+        if: matrix.toolset == 'clang-cl'
+        shell: cmd
+        run: |
+          mkdir llvm
+          cd llvm
+          curl.exe -o LLVM.exe -L ${{ env.clang_link }}
+          7z.exe x LLVM.exe
+          cd ..
+
+      - name: cache intel install
+        if: matrix.toolset == 'icx'
+        id: cache-install
+        uses: actions/cache@v2
+        with:
+          path: |
+              C:\Program Files (x86)\Intel\oneAPI\setvars-vcvarsall.bat
+              C:\Program Files (x86)\Intel\oneAPI\compiler
+          key: install-${{ env.CACHE_NUMBER }}-${{ env.WINDOWS_HPCKIT_URL }}-${{ env.WINDOWS_CPP_COMPONENTS }}-compiler-${{ hashFiles('**/scripts/cache_exclude_windows.sh') }}
+
+      - name: install intel
+        if: steps.cache-install.outputs.cache-hit != 'true' && matrix.toolset == 'icx'
+        run: |
+          git clone --depth=1 https://github.com/oneapi-src/oneapi-ci.git oneapi-ci
+          cd oneapi-ci
+          scripts/install_windows.bat ${{ env.WINDOWS_HPCKIT_URL }} ${{ env.WINDOWS_CPP_COMPONENTS }}
+
+      - name: restore registry on cache hit
+        if: steps.cache-install.outputs.cache-hit == 'true' && matrix.toolset == 'icx'
+        run:  |
+          git clone --depth=1 https://github.com/oneapi-src/oneapi-ci.git oneapi-ci
+          cd oneapi-ci
+          scripts/restore_registry.bat ${{ env.COMPILER_VERSION }} ${{ env.TBB_VERSION }}
+
+      - name: build-msvc
+        shell: cmd
+        run: |
+            call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ env.vc_arch }}
+            for /f "tokens=* usebackq" %%f in (`dir /b "C:\Program Files (x86)\Intel\oneAPI\compiler\" ^| findstr /V latest ^| sort`) do @set "LATEST_VERSION=%%f"
+            echo %LATEST_VERSION%
+            call "C:\Program Files (x86)\Intel\oneAPI\compiler\%LATEST_VERSION%\env\vars.bat"
+            set PATH="C:\Program Files (x86)\Intel\oneAPI\compiler\%LATEST_VERSION%\bin\";%CD%\llvm\bin;%CD%\jom;%PATH%
+            mkdir build
+            cd build
+            cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=${{ matrix.toolset }} -DCMAKE_CXX_COMPILER=${{ matrix.toolset }} -G Ninja "-DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}\vcpkg\scripts\buildsystems\vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=${{ matrix.vcpkg_triplet }} -DVCPKG_MANIFEST_MODE=OFF ..
+            cmake --build . --parallel --verbose
+            mkdir bin
+            copy vcjsondb.exe bin\
+
+      - name: copy oneAPI redist files
+        if: matrix.toolset == 'icx'
+        shell: cmd
+        run: |
+            for /f "tokens=* usebackq" %%f in (`dir /b "C:\Program Files (x86)\Intel\oneAPI\compiler\" ^| findstr /V latest ^| sort`) do @set "LATEST_VERSION=%%f"
+            echo %LATEST_VERSION%
+            copy /y "C:\Program Files (x86)\Intel\oneAPI\compiler\%LATEST_VERSION%\bin\libmmd.dll" build\bin\
+
+
+      - name: upload executable artifact
+        uses: actions/upload-artifact@v1
+        with:
+          path: build\bin
+          name: vcjsondb-${{ matrix.toolset }}
+
+      - name: Compress release
+        if: startsWith(github.event.ref, 'refs/tags/')
+        run: powershell Compress-Archive build\bin vcjsondb-${{ matrix.toolset }}.zip
+        
+      - name: uploadRelease
+        if: startsWith(github.event.ref, 'refs/tags/')
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GH_TOKEN }}
+          file: vcjsondb-${{ matrix.toolset }}.zip
+          asset_name: vcjsondb-${{ matrix.toolset }}.zip
+          tag: ${{ github.ref }}
+          overwrite: true
+
   Windows-MinGW:
     runs-on: windows-latest
     strategy:
