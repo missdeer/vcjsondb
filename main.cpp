@@ -364,6 +364,41 @@ bool parseSlnFile(const std::string &filePath, std::vector<std::string> &inputVc
     return true;
 }
 
+void classifyInputFile(const fs::path &inputPath, std::vector<std::string> &inputSlnFiles, std::vector<std::string> &inputVcxprojFiles)
+{
+    const auto normalizedInputFilePath = inputPath.lexically_normal().string();
+    if (boost::iends_with(normalizedInputFilePath, ".sln"))
+    {
+        inputSlnFiles.push_back(normalizedInputFilePath);
+    }
+    else if (boost::iends_with(normalizedInputFilePath, ".vcxproj"))
+    {
+        inputVcxprojFiles.push_back(normalizedInputFilePath);
+    }
+}
+
+void classifyInputFiles(const std::vector<std::string> &inputFiles, std::vector<std::string> &inputSlnFiles, std::vector<std::string> &inputVcxprojFiles)
+{
+    for (const auto &inputFile : inputFiles)
+    {
+        fs::path inputPath(inputFile);
+        if (fs::is_directory(inputPath))
+        {
+            for (const auto &entry : std::filesystem::directory_iterator(inputPath))
+            {
+                if (entry.is_regular_file())
+                {
+                    classifyInputFile(entry.path(), inputSlnFiles, inputVcxprojFiles);
+                }
+            }
+        }
+        else if (fs::is_regular_file(inputPath))
+        {
+            classifyInputFile(inputPath, inputSlnFiles, inputVcxprojFiles);
+        }
+    }
+}
+
 int main(int argc, char *argv[])
 {
     std::vector<std::string> inputFiles;
@@ -394,41 +429,7 @@ int main(int argc, char *argv[])
 
     std::vector<std::string> inputSlnFiles;
     std::vector<std::string> inputVcxprojFiles;
-    for (const auto &inputFile : inputFiles)
-    {
-        fs::path inputPath(inputFile);
-        if (fs::is_directory(inputPath))
-        {
-            // traverse this directory, find all .sln files
-            for (const auto &entry : std::filesystem::directory_iterator(inputPath))
-            {
-                if (entry.is_regular_file())
-                {
-                    const auto normalizedInputFilePath = entry.path().lexically_normal().string();
-                    if (boost::iends_with(normalizedInputFilePath, ".sln"))
-                    {
-                        inputSlnFiles.push_back(normalizedInputFilePath);
-                    }
-                    else if (boost::iends_with(normalizedInputFilePath, ".vcxproj"))
-                    {
-                        inputVcxprojFiles.push_back(normalizedInputFilePath);
-                    }
-                }
-            }
-        }
-        else if (fs::is_regular_file(inputPath))
-        {
-            const auto normalizedInputFilePath = inputPath.lexically_normal().string();
-            if (boost::iends_with(inputFile, ".sln"))
-            {
-                inputSlnFiles.push_back(normalizedInputFilePath);
-            }
-            else if (boost::iends_with(inputFile, ".vcxproj"))
-            {
-                inputVcxprojFiles.push_back(normalizedInputFilePath);
-            }
-        }
-    }
+    classifyInputFiles(inputFiles, inputSlnFiles, inputVcxprojFiles);
 
     // remove duplicated elements in inputSlnFiles
     std::sort(inputSlnFiles.begin(), inputSlnFiles.end(), [](const std::string &a, const std::string &b) {
