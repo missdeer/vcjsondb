@@ -366,12 +366,13 @@ bool parseSlnFile(const std::string &filePath, std::vector<std::string> &inputVc
 
 void classifyInputFile(const fs::path &inputPath, std::vector<std::string> &inputSlnFiles, std::vector<std::string> &inputVcxprojFiles)
 {
-    const auto normalizedInputFilePath = inputPath.lexically_normal().string();
-    if (boost::iends_with(normalizedInputFilePath, ".sln"))
+    auto normalizedInputFilePath = inputPath.lexically_normal().string();
+    boost::algorithm::to_lower(normalizedInputFilePath);
+    if (boost::ends_with(normalizedInputFilePath, ".sln"))
     {
         inputSlnFiles.push_back(normalizedInputFilePath);
     }
-    else if (boost::iends_with(normalizedInputFilePath, ".vcxproj"))
+    else if (boost::ends_with(normalizedInputFilePath, ".vcxproj"))
     {
         inputVcxprojFiles.push_back(normalizedInputFilePath);
     }
@@ -432,9 +433,7 @@ int main(int argc, char *argv[])
     classifyInputFiles(inputFiles, inputSlnFiles, inputVcxprojFiles);
 
     // remove duplicated elements in inputSlnFiles
-    std::sort(inputSlnFiles.begin(), inputSlnFiles.end(), [](const std::string &a, const std::string &b) {
-        return boost::algorithm::to_lower_copy(a) < boost::algorithm::to_lower_copy(b);
-    });
+    std::sort(inputSlnFiles.begin(), inputSlnFiles.end());
     inputSlnFiles.erase(std::unique(inputSlnFiles.begin(), inputSlnFiles.end()), inputSlnFiles.end());
 
     // parse .sln files
@@ -444,9 +443,7 @@ int main(int argc, char *argv[])
     }
 
     // remove duplicated elements in inputVcxprojFiles
-    std::sort(inputVcxprojFiles.begin(), inputVcxprojFiles.end(), [](const std::string &a, const std::string &b) {
-        return boost::algorithm::to_lower_copy(a) < boost::algorithm::to_lower_copy(b);
-    });
+    std::sort(inputVcxprojFiles.begin(), inputVcxprojFiles.end());
     inputVcxprojFiles.erase(std::unique(inputVcxprojFiles.begin(), inputVcxprojFiles.end()), inputVcxprojFiles.end());
 
     if (inputVcxprojFiles.empty())
