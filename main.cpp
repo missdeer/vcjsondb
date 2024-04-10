@@ -33,6 +33,21 @@ struct NormalizePathFunctor
     };
 };
 
+void concatenateSearchPaths(std::stringstream &sstream, const std::vector<std::string> &searchPaths)
+{
+    for (const auto &searchPath : searchPaths)
+    {
+        if (std::any_of(searchPath.begin(), searchPath.end(), [](const char c) { return c == ' '; }))
+        {
+            sstream << R"( \"-I)" << searchPath << R"(\")";
+        }
+        else
+        {
+            sstream << " -I" << searchPath;
+        }
+    }
+}
+
 std::string getGlobalOptions(const std::vector<std::string> &preprocessorDefinitions,
                              const std::string              &charset,
                              bool                            useOfMFC,
@@ -75,18 +90,8 @@ std::string getGlobalOptions(const std::vector<std::string> &preprocessorDefinit
     getVCIncludedDirectories(toolset, systemIncludedDirectories, useOfMFC);
     getSDKIncludedDirectories(sdkVer, systemIncludedDirectories);
     std::transform(systemIncludedDirectories.begin(), systemIncludedDirectories.end(), systemIncludedDirectories.begin(), NormalizePathFunctor());
-
-    for (const auto &systemIncludedDirectory : systemIncludedDirectories)
-    {
-        if (std::any_of(systemIncludedDirectory.begin(), systemIncludedDirectory.end(), [](const char c) { return c == ' '; }))
-        {
-            sstream << R"( -isystem\")" << systemIncludedDirectory << R"(\")";
-        }
-        else
-        {
-            sstream << "-isystem " << systemIncludedDirectory;
-        }
-    }
+    concatenateSearchPaths(sstream, systemIncludedDirectories);
+    
     return sstream.str();
 }
 
@@ -282,18 +287,7 @@ bool parseVcxprojFile(const std::string &filePath, std::ofstream &ofs)
     static const std::string globalOptionsStr = getGlobalOptions(preprocessorDefinitions, charset, useOfMFC, isMultiThread, isDLL, toolset, sdkVer);
     std::stringstream        sstream;
     sstream << globalOptionsStr;
-    for (const auto &additionalIncludedDirectory : additionalIncludedDirectories)
-    {
-        if (std::any_of(additionalIncludedDirectory.begin(), additionalIncludedDirectory.end(), [](const char c) { return c == ' '; }))
-        {
-            sstream << R"( -I\")" << additionalIncludedDirectory << R"(\")";
-        }
-        else
-        {
-            sstream << " -I" << additionalIncludedDirectory;
-        }
-    }
-
+    concatenateSearchPaths(sstream, additionalIncludedDirectories);
     sstream << "\"\n},";
     const std::string        optionsStr = sstream.str();
     const std::string        dirStr     = "\n{\n  \"directory\": \"" + vcxprojParentDirStr + "\",\n";
