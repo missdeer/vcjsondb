@@ -10,19 +10,20 @@ on:
       - 'LICENSE'
 
 env:
-  WINDOWS_BASEKIT_URL: https://registrationcenter-download.intel.com/akdlm/IRC_NAS/62641e01-1e8d-4ace-91d6-ae03f7f8a71f/w_BaseKit_p_2024.0.0.49563_offline.exe
-  WINDOWS_HPCKIT_URL: https://registrationcenter-download.intel.com/akdlm/IRC_NAS/5b36181e-4974-4733-91c7-0c10c54900a5/w_HPCKit_p_2024.0.0.49588_offline.exe
+  WINDOWS_BASEKIT_URL: https://registrationcenter-download.intel.com/akdlm/IRC_NAS/7dff44ba-e3af-4448-841c-0d616c8da6e7/w_BaseKit_p_2024.1.0.595_offline.exe
+  WINDOWS_HPCKIT_URL: https://registrationcenter-download.intel.com/akdlm/IRC_NAS/c95a3b26-fc45-496c-833b-df08b10297b9/w_HPCKit_p_2024.1.0.561_offline.exe
   WINDOWS_CPP_COMPONENTS: intel.oneapi.win.cpp-dpcpp-common
   WINDOWS_DPCPP_COMPONENTS: intel.oneapi.win.cpp-dpcpp-common
   CACHE_NUMBER: 6
-  SAMPLES_TAG: 2024.0.0
-  COMPILER_VERSION: 2024.0.0
-  TBB_VERSION: 2021.11.0
+  SAMPLES_TAG: 2024.1.0
+  COMPILER_VERSION: 2024.1.0
+  TBB_VERSION: 2021.12.0
   VS_VER: vs2022
   vc_arch: "x64"
   output_dir: "x86_64"
   clang_link: https://github.com/llvm/llvm-project/releases/download/llvmorg-18.1.3/LLVM-18.1.3-win64.exe
   ninja_link: https://github.com/ninja-build/ninja/releases/download/v1.11.1/ninja-win.zip
+  vcpkg_triplet: x64-windows-static
 
 jobs:          
   Windows-MSVC:
@@ -30,13 +31,6 @@ jobs:
     strategy:
       matrix:
         toolset: [cl, clang-cl, icx]
-        include:
-          - toolset: icx
-            vcpkg_triplet: x64-windows-static
-          - toolset: clang-cl
-            vcpkg_triplet: x64-windows-static
-          - toolset: cl
-            vcpkg_triplet: x64-windows-static
             
     steps:
       - uses: actions/checkout@v2
@@ -49,7 +43,7 @@ jobs:
         id: vcpkg
         with:
           pkgs: boost-process boost-filesystem boost-program-options
-          triplet: ${{ matrix.vcpkg_triplet }}
+          triplet: ${{ env.vcpkg_triplet }}
           token: ${{ github.token }}
 
       - name: Set up clang for Windows
