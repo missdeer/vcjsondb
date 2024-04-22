@@ -39,11 +39,11 @@ void concatenateSearchPaths(std::stringstream &sstream, const std::vector<std::s
     {
         if (std::any_of(searchPath.begin(), searchPath.end(), [](const char c) { return c == ' '; }))
         {
-            sstream << R"( \"-I)" << searchPath << R"(\")";
+            sstream << R"( /I \")" << searchPath << R"(\")";
         }
         else
         {
-            sstream << " -I" << searchPath;
+            sstream << " /I " << searchPath;
         }
     }
 }
@@ -62,28 +62,28 @@ std::string getGlobalOptions(const std::vector<std::string> &preprocessorDefinit
     {
         if (std::any_of(preprocessorDefinition.begin(), preprocessorDefinition.end(), [](const char c) { return c == ' '; }))
         {
-            sstream << R"( \"-D)" << preprocessorDefinition << R"(\")";
+            sstream << R"( /D \")" << preprocessorDefinition << R"(\")";
         }
         else
         {
-            sstream << " -D" << preprocessorDefinition;
+            sstream << " /D " << preprocessorDefinition;
         }
     }
     if (charset == "Unicode")
     {
-        sstream << " -DUNICODE -D_UNICODE";
+        sstream << " /D UNICODE /D _UNICODE";
     }
     if (useOfMFC)
     {
-        sstream << " -D_AFXDLL";
+        sstream << " /D _AFXDLL";
     }
     if (isMultiThread)
     {
-        sstream << " -D_MT";
+        sstream << " /D _MT";
     }
     if (isDLL)
     {
-        sstream << " -D_DLL";
+        sstream << " /D _DLL";
     }
 
     std::vector<std::string> systemIncludedDirectories;
@@ -224,12 +224,12 @@ bool parseVcxprojFile(const std::string &filePath, std::ofstream &ofs)
         languageStandard = std::string(languageStandardNode->value(), languageStandardNode->value_size());
     }
     static const std::map<std::string, std::string> languageStandardMap = {
-        {"stdcpp11", "-std=c++11"},
-        {"stdcpp14", "-std=c++14"},
-        {"stdcpp17", "-std=c++17"},
-        {"stdcpp20", "-std=c++20"},
-        {"stdcpp23", "-std=c++23"},
-        {"stdcpplatest", "-std=c++2b"},
+        {"stdcpp11", "/std:c++11"},
+        {"stdcpp14", "/std:c++14"},
+        {"stdcpp17", "/std:c++17"},
+        {"stdcpp20", "/std:c++20"},
+        {"stdcpp23", "/std:c++23"},
+        {"stdcpplatest", "/std:c++2b"},
     };
     auto iter = languageStandardMap.find(languageStandard);
     if (languageStandardMap.end() != iter)
@@ -238,7 +238,7 @@ bool parseVcxprojFile(const std::string &filePath, std::ofstream &ofs)
     }
     else
     {
-        languageStandard = "-std=c++14"; // by default, for MSVC 2015
+        languageStandard = "/std:c++14"; // by default, for MSVC 2015
     }
 
     bool  isMultiThread      = false;
@@ -292,8 +292,8 @@ bool parseVcxprojFile(const std::string &filePath, std::ofstream &ofs)
     const std::string        optionsStr = sstream.str();
     const std::string        dirStr     = "\n{\n  \"directory\": \"" + vcxprojParentDirStr + "\",\n";
     static const std::string clPath     = boost::algorithm::replace_all_copy(getClPath(toolset), "\\", "/");
-    static const std::string cppCmd     = R"(  "command": "\")" + clPath + R"(\" -x c++ \")";
-    static const std::string cCmd       = R"(  "command": "\")" + clPath + R"(\" -x c \")";
+    static const std::string cppCmd     = R"(  "command": "\")" + clPath + R"(\" /c /TP \")";
+    static const std::string cCmd       = R"(  "command": "\")" + clPath + R"(\" /c /TC \")";
 
     for (auto *itemGroupNode = rootNode->first_node("ItemGroup"); itemGroupNode != nullptr; itemGroupNode = itemGroupNode->next_sibling("ItemGroup"))
     {
