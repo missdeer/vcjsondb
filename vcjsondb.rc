@@ -1,8 +1,8 @@
 #include <windows.h>
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,2,0,1
- PRODUCTVERSION 1,2,0,1
+ FILEVERSION 1,3,0,1
+ PRODUCTVERSION 1,3,0,1
 FILEFLAGSMASK	0x3fL
 FILEFLAGS 0
 FILEOS VOS_NT_WINDOWS32
@@ -15,12 +15,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "me@minidump.info"
             VALUE "FileDescription", "Export compiler commands database from Microsoft Visual Studio .sln/vcxproj file."
-            VALUE "FileVersion", "1.2.0.1"
+            VALUE "FileVersion", "1.3.0.1"
             VALUE "InternalName", "vcjsondb"
             VALUE "LegalCopyright", "Copyright (C) 2023 - 2024 me@minidump.info. All rights reserved."
             VALUE "OriginalFilename", "vcjsondb.exe"
             VALUE "ProductName", "VC JSON DB"
-            VALUE "ProductVersion", "1.2.0.1"
+            VALUE "ProductVersion", "1.3.0.1"
         END
     END
     BLOCK "VarFileInfo"
