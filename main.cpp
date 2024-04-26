@@ -1,4 +1,5 @@
-﻿#include <filesystem>
+﻿#include <algorithm>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <regex>
@@ -451,22 +452,10 @@ int main(int argc, char *argv[])
     target = "'$(Configuration)|$(Platform)'=='" + target + "'";
 
     fs::path outputPath(outputDirectory + "\\compile_commands.json");
-    auto outputPathLastModifiedTime = fs::last_write_time(outputPath);
-    bool needUpdate = false;
-    // compare outputPath and inputVcxprojFiles last modified time
-    for (const auto &inputVcxprojFile : inputVcxprojFiles)
-    {
-        fs::path vcxprojPath(inputVcxprojFile);
-        if (fs::exists(vcxprojPath))
-        {
-            fs::file_time_type lastModifiedTime = fs::last_write_time(vcxprojPath);
-            if (lastModifiedTime > outputPathLastModifiedTime)
-            {
-                needUpdate = true;
-                break;
-            }
-        }
-    }
+    auto     outputPathLastModifiedTime = fs::last_write_time(outputPath);
+    bool needUpdate = std::any_of(inputVcxprojFiles.begin(), inputVcxprojFiles.end(), [&outputPathLastModifiedTime](const auto &inputVcxprojFile) {
+        return fs::exists(inputVcxprojFile) && fs::last_write_time(inputVcxprojFile) > outputPathLastModifiedTime;
+    });
     if (!needUpdate)
     {
         std::cout << "No need to update compile_commands.json" << std::endl;
