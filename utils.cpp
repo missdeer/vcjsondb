@@ -53,14 +53,21 @@ bool getSDKIncludedDirectories(const std::string &sdkVer, std::vector<std::strin
     {
         // populate the latest one
         std::vector<std::string> subdirs;
-        for (const auto &entry : fs::directory_iterator(sdkIncludePath))
+        try
         {
-            if (entry.is_directory())
+            for (const auto &entry : fs::directory_iterator(sdkIncludePath))
             {
-                subdirs.push_back(entry.path().filename().string());
+                if (entry.is_directory())
+                {
+                    subdirs.push_back(entry.path().filename().string());
+                }
             }
         }
-
+        catch (const std::exception &e)
+        {
+            std::cerr << e.what() << std::endl;
+        }
+        
         if (!subdirs.empty())
         {
             std::sort(subdirs.begin(), subdirs.end());
