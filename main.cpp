@@ -222,7 +222,7 @@ bool parseVcxprojFile(const std::string &filePath, const std::string &target, st
         {"stdcpp17", "/std:c++17"},
         {"stdcpp20", "/std:c++20"},
         {"stdcpp23", "/std:c++23"},
-        {"stdcpplatest", "/std:c++2b"},
+        {"stdcpplatest", "/std:c++latest"},
     };
     auto iter = languageStandardMap.find(languageStandard);
     if (languageStandardMap.end() != iter)
