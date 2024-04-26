@@ -15,19 +15,12 @@
 namespace bp = boost::process;
 namespace po = boost::program_options;
 namespace fs = std::filesystem;
-
-namespace
-{
-    std::string outputDirectory;
-    std::string target;
-} // namespace
-
 struct NormalizePathFunctor
 {
-    std::string operator()(const std::string &str)
+    std::string operator()(const std::string &strPath)
     {
-        fs::path p(str);
-        auto     normalizedPath = p.lexically_normal().string();
+        fs::path path(strPath);
+        auto     normalizedPath = path.lexically_normal().string();
         std::replace(normalizedPath.begin(), normalizedPath.end(), '\\', '/');
         return normalizedPath;
     };
@@ -39,11 +32,11 @@ void concatenateSearchPaths(std::stringstream &sstream, const std::vector<std::s
     {
         if (std::any_of(searchPath.begin(), searchPath.end(), [](const char c) { return c == ' '; }))
         {
-            sstream << R"( /I \")" << searchPath << R"(\")";
+            sstream << R"( \"/I)" << searchPath << R"(\")";
         }
         else
         {
-            sstream << " /I " << searchPath;
+            sstream << " /I" << searchPath;
         }
     }
 }
@@ -57,33 +50,32 @@ std::string getGlobalOptions(const std::vector<std::string> &preprocessorDefinit
                              const std::string              &sdkVer)
 {
     std::stringstream sstream;
-    sstream << " -fsyntax-only";
     for (const auto &preprocessorDefinition : preprocessorDefinitions)
     {
         if (std::any_of(preprocessorDefinition.begin(), preprocessorDefinition.end(), [](const char c) { return c == ' '; }))
         {
-            sstream << R"( /D \")" << preprocessorDefinition << R"(\")";
+            sstream << R"( \"/D)" << preprocessorDefinition << R"(\")";
         }
         else
         {
-            sstream << " /D " << preprocessorDefinition;
+            sstream << " /D" << preprocessorDefinition;
         }
     }
     if (charset == "Unicode")
     {
-        sstream << " /D UNICODE /D _UNICODE";
+        sstream << " /DUNICODE /D_UNICODE";
     }
     if (useOfMFC)
     {
-        sstream << " /D _AFXDLL";
+        sstream << " /D_AFXDLL";
     }
     if (isMultiThread)
     {
-        sstream << " /D _MT";
+        sstream << " /D_MT";
     }
     if (isDLL)
     {
-        sstream << " /D _DLL";
+        sstream << " /D_DLL";
     }
 
     std::vector<std::string> systemIncludedDirectories;
@@ -91,11 +83,11 @@ std::string getGlobalOptions(const std::vector<std::string> &preprocessorDefinit
     getSDKIncludedDirectories(sdkVer, systemIncludedDirectories);
     std::transform(systemIncludedDirectories.begin(), systemIncludedDirectories.end(), systemIncludedDirectories.begin(), NormalizePathFunctor());
     concatenateSearchPaths(sstream, systemIncludedDirectories);
-    
+
     return sstream.str();
 }
 
-bool parseVcxprojFile(const std::string &filePath, std::ofstream &ofs)
+bool parseVcxprojFile(const std::string &filePath, const std::string &target, std::ofstream &ofs)
 {
     fs::path vcxprojFilePath(fs::absolute(fs::path(filePath)));
     if (!fs::exists(vcxprojFilePath))
@@ -378,7 +370,9 @@ void classifyInputFile(const fs::path &inputPath, std::vector<std::string> &inpu
     }
 }
 
-void classifyInputFiles(const std::vector<std::string> &inputFiles, std::vector<std::string> &inputSlnFiles, std::vector<std::string> &inputVcxprojFiles)
+void classifyInputFiles(const std::vector<std::string> &inputFiles,
+                        std::vector<std::string>       &inputSlnFiles,
+                        std::vector<std::string>       &inputVcxprojFiles)
 {
     for (const auto &inputFile : inputFiles)
     {
@@ -403,6 +397,8 @@ void classifyInputFiles(const std::vector<std::string> &inputFiles, std::vector<
 int main(int argc, char *argv[])
 {
     std::vector<std::string> inputFiles;
+    std::string              outputDirectory;
+    std::string              target;
 
     po::options_description desc("Allowed options");
     desc.add_options()("help,h",
@@ -455,6 +451,28 @@ int main(int argc, char *argv[])
     target = "'$(Configuration)|$(Platform)'=='" + target + "'";
 
     fs::path outputPath(outputDirectory + "\\compile_commands.json");
+    auto outputPathLastModifiedTime = fs::last_write_time(outputPath);
+    bool needUpdate = false;
+    // compare outputPath and inputVcxprojFiles last modified time
+    for (const auto &inputVcxprojFile : inputVcxprojFiles)
+    {
+        fs::path vcxprojPath(inputVcxprojFile);
+        if (fs::exists(vcxprojPath))
+        {
+            fs::file_time_type lastModifiedTime = fs::last_write_time(vcxprojPath);
+            if (lastModifiedTime > outputPathLastModifiedTime)
+            {
+                needUpdate = true;
+                break;
+            }
+        }
+    }
+    if (!needUpdate)
+    {
+        std::cout << "No need to update compile_commands.json" << std::endl;
+        return 0;
+    }
+
     outputPath = fs::absolute(outputPath).lexically_normal();
     std::ofstream ofs(outputPath.string());
 
@@ -468,7 +486,7 @@ int main(int argc, char *argv[])
 
     for (const auto &inputVcxprojFile : inputVcxprojFiles)
     {
-        parseVcxprojFile(inputVcxprojFile, ofs);
+        parseVcxprojFile(inputVcxprojFile, target, ofs);
     }
 
     // remove the last comma
