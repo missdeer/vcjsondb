@@ -9,13 +9,14 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/process.hpp>
 #include <boost/program_options.hpp>
-#include <rapidxml.hpp>
+#include <boost/property_tree/detail/rapidxml.hpp>
 
 #include "utils.h"
 
-namespace bp = boost::process;
-namespace po = boost::program_options;
-namespace fs = std::filesystem;
+namespace bp       = boost::process;
+namespace po       = boost::program_options;
+namespace fs       = std::filesystem;
+namespace rapidxml = boost::property_tree::detail::rapidxml;
 struct NormalizePathFunctor
 {
     std::string operator()(const std::string &strPath)

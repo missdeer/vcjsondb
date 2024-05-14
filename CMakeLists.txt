@@ -7,8 +7,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/rapidxml-1.13)
-
 set(Boost_NO_WARN_NEW_VERSIONS ON)
 
 find_package(Boost REQUIRED program_options filesystem)
