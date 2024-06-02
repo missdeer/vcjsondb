@@ -453,9 +453,10 @@ int main(int argc, char *argv[])
     target = "'$(Configuration)|$(Platform)'=='" + target + "'";
 
     fs::path outputPath(outputDirectory + "\\compile_commands.json");
-    auto     outputPathLastModifiedTime = fs::last_write_time(outputPath);
-    bool needUpdate = std::any_of(inputVcxprojFiles.begin(), inputVcxprojFiles.end(), [&outputPathLastModifiedTime](const auto &inputVcxprojFile) {
-        return fs::exists(inputVcxprojFile) && fs::last_write_time(inputVcxprojFile) > outputPathLastModifiedTime;
+    bool     needUpdate = std::any_of(inputVcxprojFiles.begin(), inputVcxprojFiles.end(), [&outputPath](const auto &inputVcxprojFile) {
+        if (!fs::exists(outputPath))
+            return true;
+        return fs::exists(inputVcxprojFile) && fs::last_write_time(inputVcxprojFile) > fs::last_write_time(outputPath);
     });
     if (!needUpdate)
     {
