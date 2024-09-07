@@ -10,15 +10,15 @@ on:
       - 'LICENSE'
 
 env:
-  WINDOWS_BASEKIT_URL: https://registrationcenter-download.intel.com/akdlm/IRC_NAS/e83a8e64-04fc-45df-85c6-c2208d03bdb5/w_BaseKit_p_2024.2.0.635_offline.exe
-  WINDOWS_HPCKIT_URL: https://registrationcenter-download.intel.com/akdlm/IRC_NAS/0d500705-397e-41b3-8b2b-2a3da1753fc2/w_HPCKit_p_2024.2.0.633_offline.exe
+  WINDOWS_BASEKIT_URL: https://registrationcenter-download.intel.com/akdlm/IRC_NAS/d91caaa0-7306-46ea-a519-79a0423e1903/w_BaseKit_p_2024.2.1.101_offline.exe
+  WINDOWS_HPCKIT_URL: https://registrationcenter-download.intel.com/akdlm/IRC_NAS/745e923a-3f85-4e1e-b6dd-637c0e9ccba6/w_HPCKit_p_2024.2.1.80_offline.exe
   WINDOWS_CPP_COMPONENTS: intel.oneapi.win.cpp-dpcpp-common
   WINDOWS_DPCPP_COMPONENTS: intel.oneapi.win.cpp-dpcpp-common
   CACHE_NUMBER: 6
   SAMPLES_TAG: 2024.2.0
   AI_SAMPLES_TAG: 2024.1.0
-  COMPILER_VERSION: 2024.2.0
-  TBB_VERSION: 2021.13.0
+  COMPILER_VERSION: 2024.2.1
+  TBB_VERSION: 2021.13.1
   VS_VER: vs2022
   vc_arch: "x64"
   output_dir: "x86_64"
