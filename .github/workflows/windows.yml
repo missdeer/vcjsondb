@@ -97,7 +97,7 @@ jobs:
             copy vcjsondb.exe bin\
 
       - name: upload executable artifact
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v4
         with:
           path: build\bin
           name: vcjsondb-${{ matrix.toolset }}
@@ -177,7 +177,7 @@ jobs:
           cd ..
 
       - name: upload executable artifact
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v4
         with:
           path: build\bin
           name: vcjsondb-${{ matrix.build_arch }}
