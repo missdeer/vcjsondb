@@ -145,12 +145,6 @@ jobs:
             toolchains: clang
             c: clang
             cxx: clang++
-          - build_arch: clang32-clang
-            mingw_arch: CLANG32
-            mingw_prefix: mingw-w64-clang-i686
-            toolchains: clang
-            c: clang
-            cxx: clang++
           
     steps:
       - uses: msys2/setup-msys2@v2
