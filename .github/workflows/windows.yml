@@ -22,7 +22,7 @@ env:
   VS_VER: vs2022
   vc_arch: "x64"
   output_dir: "x86_64"
-  clang_link: https://github.com/llvm/llvm-project/releases/download/llvmorg-18.1.8/LLVM-18.1.8-win64.exe
+  clang_link: https://github.com/llvm/llvm-project/releases/download/llvmorg-19.1.1/LLVM-19.1.1-win64.exe
   ninja_link: https://github.com/ninja-build/ninja/releases/download/v1.12.1/ninja-win.zip
   vcpkg_triplet: x64-windows-static
 
