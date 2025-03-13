@@ -60,7 +60,7 @@ jobs:
       - name: cache intel install
         if: matrix.toolset == 'icx'
         id: cache-install
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: |
               C:\Program Files (x86)\Intel\oneAPI\setvars-vcvarsall.bat
